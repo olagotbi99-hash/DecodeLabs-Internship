@@ -1,0 +1,149 @@
+/*
+=============================================================
+Create Database, Table, and EDA
+=============================================================
+Script Purpose:
+    This script creates a new database named 'SalesD' after checking if it already exists. 
+    If the database exists, it is dropped and recreated. 
+    Create a staging table and bulk insert the raw data without any formating, then create the final table and change into the appropriate 
+    format.
+    To perform quik EDA in the data.
+WARNING:
+    Running this script will drop the entire 'SalesD' database if it exists. 
+    All data in the database will be permanently deleted. Proceed with caution 
+    and ensure you have proper backups before running this script.
+*/
+
+-- Create the database:
+
+CREATE DATABASE SalesD;
+
+-- Create the staging table:
+
+IF OBJECT_ID('dbo.Sales_Staging', 'U') IS NOT NULL
+DROP TABLE dbo.Sales_Staging;
+
+CREATE TABLE dbo.Sales_Staging (
+OrderID NVARCHAR(MAX),
+Date NVARCHAR(MAX),
+CustomerID NVARCHAR(MAX),
+Product NVARCHAR(MAX),
+Quantity NVARCHAR(MAX),
+UnitPrice NVARCHAR(MAX),
+ShippingAddress NVARCHAR(MAX),
+PaymentMethod NVARCHAR(MAX),
+OrderStatus NVARCHAR(MAX),
+TrackingNumber NVARCHAR(MAX),
+ItemsInCart NVARCHAR(MAX),
+CouponCode NVARCHAR(MAX),
+ReferralSource NVARCHAR(MAX),
+TotalPrice NVARCHAR(MAX)
+);
+
+-- Bulk insert:
+
+BULK INSERT dbo.Sales_Staging
+		FROM 'C:\SQL data\Book.CSV'
+		WITH ( 
+			  FIRSTROW = 2,
+			  FIELDTERMINATOR = ',',
+			  TABLOCK 
+		);
+
+-- Create the final table:
+
+IF OBJECT_ID('dbo.Sales', 'U') IS NOT NULL
+DROP TABLE dbo.Sales;
+
+CREATE TABLE dbo.Sales (
+OrderID NVARCHAR(50),
+Date DATE,
+CustomerID NVARCHAR(50),
+Product NVARCHAR(50),
+Quantity INT,
+UnitPrice DECIMAL(10,2),
+ShippingAddress NVARCHAR(MAX),
+PaymentMethod NVARCHAR(50),
+OrderStatus NVARCHAR(50),
+TrackingNumber NVARCHAR(50),
+ItemsInCart INT,
+CouponCode NVARCHAR(50),
+ReferralSource NVARCHAR(50),
+TotalPrice DECIMAL(10,4)
+);
+
+-- Insert the formatted data:
+
+INSERT INTO dbo.Sales (
+OrderID,
+Date,
+CustomerID,
+Product,
+Quantity,
+UnitPrice,
+ShippingAddress,
+PaymentMethod,
+OrderStatus,
+TrackingNumber,
+ItemsInCart,
+CouponCode,
+ReferralSource,
+TotalPrice
+)
+SELECT 
+TRY_CAST(OrderID AS NVARCHAR(50)),
+DATEADD(day,CAST(date AS INT)- 2,'1900-01-01'),
+TRY_CAST(CustomerID AS NVARCHAR(50)),
+TRY_CAST(Product AS NVARCHAR(50)),
+TRY_CAST(Quantity AS INT),
+TRY_CAST(UnitPrice AS DECIMAL(10,2)),
+ShippingAddress,
+TRY_CAST(PaymentMethod AS NVARCHAR(50)),
+TRY_CAST(OrderStatus AS NVARCHAR(50)),
+TRY_CAST(TrackingNumber AS NVARCHAR(50)),
+TRY_CAST(ItemsInCart AS INT),
+TRY_CAST(CouponCode AS NVARCHAR(50)),
+TRY_CAST(ReferralSource AS NVARCHAR(50)),
+TRY_CAST(TotalPrice AS DECIMAL(10,4))
+FROM dbo.Sales_Staging;
+
+========================================================================
+-- EDA
+-- Total revenue by product
+
+SELECT 
+Product,
+SUM(TotalPrice) AS Total_Revenue
+FROM dbo.Sales
+GROUP BY Product
+ORDER BY SUM(TotalPrice) DESC;
+
+-- Count orders by payment method
+
+SELECT 
+PaymentMethod,
+COUNT(OrderID) AS Total_Orders
+FROM dbo.Sales
+GROUP BY PaymentMethod
+ORDER BY COUNT(OrderID)  DESC;
+
+-- Average Order value By product
+
+
+SELECT 
+Product,
+AVG(TotalPrice) AS Avg_Price
+FROM dbo.Sales
+GROUP BY Product
+ORDER BY AVG(TotalPrice) DESC;
+
+
+-- Orders where total price > 3000
+
+
+SELECT 
+OrderID,
+TotalPrice
+FROM dbo.Sales
+WHERE TotalPrice > 3000
+ORDER BY TotalPrice DESC;
